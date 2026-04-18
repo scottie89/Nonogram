@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ノノグラム</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #1a1a2e;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: sans-serif;
+    color: #ccc;
+  }
+  #ng {
+    padding: 2rem;
+    background: #12122a;
+    border-radius: 12px;
+    border: 1px solid #2a2a4a;
+  }
+  #meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: #666;
+  }
+  #meta span { font-weight: 500; font-size: 15px; color: #ddd; }
+  #msg { font-size: 13px; color: #666; margin-top: 8px; min-height: 20px; }
+  #msg.win { color: #4ade80; font-weight: 500; }
+  #msg.err { color: #f87171; }
+  #controls { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  button {
+    font-size: 12px; padding: 5px 14px; border-radius: 6px;
+    border: 1px solid #3a3a6a; background: #1e1e3a; color: #aaa;
+    cursor: pointer; font-family: sans-serif;
+  }
+  button:hover { background: #2a2a50; color: #ddd; }
+  #next-btn { display: none; }
+</style>
+</head>
+<body>
+<div id="ng">
+  <div id="meta">
+    <div>ノノグラム <span id="puzzle-title">レベル 1</span></div>
+    <div style="font-size:12px;color:#555">左クリック＝塗る　右クリック＝×</div>
+  </div>
+  <div id="board"></div>
+  <div id="controls">
+    <button id="check-btn">答え合わせ</button>
+    <button id="reset-btn">リセット</button>
+    <button id="next-btn">次のパズル →</button>
+  </div>
+  <div id="msg"></div>
+</div>
+
+<script>
+const PUZZLES = [
+  {
+    title: "レベル 1 — ハート",
+    size: 5,
+    grid: [
+      [0,1,0,1,0],
+      [1,1,1,1,1],
+      [1,1,1,1,1],
+      [0,1,1,1,0],
+      [0,0,1,0,0],
+    ]
+  },
+  {
+    title: "レベル 2 — 矢印",
+    size: 5,
+    grid: [
+      [0,0,1,0,0],
+      [0,1,1,1,0],
+      [1,1,1,1,1],
+      [0,0,1,0,0],
+      [0,0,1,0,0],
+    ]
+  },
+  {
+    title: "レベル 3 — 家",
+    size: 6,
+    grid: [
+      [0,0,1,1,0,0],
+      [0,1,1,1,1,0],
+      [1,1,1,1,1,1],
+      [1,1,0,0,1,1],
+      [1,1,0,0,1,1],
+      [1,1,1,1,1,1],
+    ]
+  },
+  {
+    title: "レベル 4 — 魚",
+    size: 7,
+    grid: [
+      [0,0,1,1,1,0,1],
+      [0,1,1,1,1,1,0],
+      [1,1,1,1,1,1,1],
+      [1,1,1,1,1,1,1],
+      [0,1,1,1,1,1,0],
+      [0,0,1,1,1,0,0],
+      [0,0,0,1,0,0,0],
+    ]
+  }
+];
+
+let current = 0;
+let state = [];
+let solved = false;
+
+function getHints(line) {
+  const runs = [];
+  let count = 0;
+  for (let v of line) {
+    if (v) count++;
+    else if (count) { runs.push(count); count = 0; }
+  }
+  if (count) runs.push(count);
+  return runs.length ? runs : [0];
+}
+
+function buildBoard() {
+  const p = PUZZLES[current];
+  const n = p.size;
+  state = Array.from({length:n}, () => Array(n).fill(0));
+  solved = false;
+  document.getElementById('msg').textContent = '';
+  document.getElementById('msg').className = '';
+  document.getElementById('next-btn').style.display = 'none';
+  document.getElementById('puzzle-title').textContent = p.title;
+
+  const rowHints = p.grid.map(row => getHints(row));
+  const colHints = Array.from({length:n}, (_,c) => getHints(p.grid.map(r=>r[c])));
+
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+
+  const colRow = document.createElement('div');
+  colRow.style.cssText = 'display:flex;margin-left:58px';
+  for (let c = 0; c < n; c++) {
+    const ch = document.createElement('div');
+    ch.style.cssText = 'width:36px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:4px;min-height:56px;gap:1px';
+    for (let h of colHints[c]) {
+      const d = document.createElement('div');
+      d.textContent = h;
+      d.style.cssText = 'font-size:11px;color:#666;font-weight:500;line-height:1.5';
+      ch.appendChild(d);
+    }
+    colRow.appendChild(ch);
+  }
+  board.appendChild(colRow);
+
+  for (let r = 0; r < n; r++) {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center';
+
+    const rh = document.createElement('div');
+    rh.style.cssText = 'display:flex;gap:3px;align-items:center;justify-content:flex-end;width:52px;padding-right:6px';
+    for (let h of rowHints[r]) {
+      const s = document.createElement('span');
+      s.textContent = h;
+      s.style.cssText = 'font-size:11px;color:#666;font-weight:500';
+      rh.appendChild(s);
+    }
+    row.appendChild(rh);
+
+    for (let c = 0; c < n; c++) {
+      const cell = document.createElement('div');
+      cell.style.cssText = 'width:36px;height:36px;border:0.5px solid #2a2a4a;cursor:pointer;background:#1a1a30;transition:background 0.1s;user-select:none';
+      cell.dataset.r = r;
+      cell.dataset.c = c;
+
+      cell.addEventListener('click', () => {
+        if (solved) return;
+        state[r][c] = state[r][c] === 1 ? 0 : 1;
+        renderCells();
+      });
+
+      cell.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        if (solved) return;
+        state[r][c] = state[r][c] === 2 ? 0 : 2;
+        renderCells();
+      });
+
+      row.appendChild(cell);
+    }
+    board.appendChild(row);
+  }
+}
+
+function renderCells() {
+  document.querySelectorAll('#board [data-r]').forEach(cell => {
+    const r = +cell.dataset.r, c = +cell.dataset.c;
+    const v = state[r][c];
+    cell.textContent = '';
+    cell.style.color = '';
+    cell.style.fontSize = '';
+    cell.style.display = '';
+    cell.style.alignItems = '';
+    cell.style.justifyContent = '';
+    if (v === 1) {
+      cell.style.background = '#ddd';
+    } else if (v === 2) {
+      cell.style.background = '#1a1a30';
+      cell.style.color = '#444';
+      cell.style.fontSize = '18px';
+      cell.style.display = 'flex';
+      cell.style.alignItems = 'center';
+      cell.style.justifyContent = 'center';
+      cell.textContent = '×';
+    } else {
+      cell.style.background = '#1a1a30';
+    }
+  });
+}
+
+function check() {
+  const p = PUZZLES[current];
+  let correct = true;
+  document.querySelectorAll('#board [data-r]').forEach(cell => {
+    const r = +cell.dataset.r, c = +cell.dataset.c;
+    if ((state[r][c] === 1) !== (p.grid[r][c] === 1)) correct = false;
+  });
+  const msg = document.getElementById('msg');
+  if (correct) {
+    solved = true;
+    msg.textContent = '正解！';
+    msg.className = 'win';
+    if (current < PUZZLES.length - 1) {
+      document.getElementById('next-btn').style.display = 'inline-block';
+    } else {
+      msg.textContent = '全パズルクリア！おめでとう！';
+    }
+  } else {
+    msg.textContent = 'まだ違うみたい…もう少し考えてみよう';
+    msg.className = 'err';
+  }
+}
+
+document.getElementById('check-btn').addEventListener('click', check);
+document.getElementById('reset-btn').addEventListener('click', buildBoard);
+document.getElementById('next-btn').addEventListener('click', () => {
+  current = Math.min(current + 1, PUZZLES.length - 1);
+  buildBoard();
+});
+
+buildBoard();
+</script>
+</body>
+</html>

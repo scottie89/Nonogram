@@ -48,7 +48,7 @@
   button {
     font-size: 12px; padding: 5px 14px; border-radius: 6px;
     border: 1px solid #3a3a6a; background: #1e1e3a; color: #aaa;
-    cursor: pointer; font-family: sans-serif;
+    cursor: pointer; font-family: sans-serif; touch-action: manipulation;
   }
   button:hover { background: #2a2a50; color: #ddd; }
   #hint-btn { border-color: #4a3a10; background: #1e1a10; color: #a08040; }
@@ -59,14 +59,15 @@
     border: 1px solid #3a3a6a; background: #1e1e3a; color: #aaa;
     cursor: pointer; font-family: sans-serif;
   }
+  #op-hint { font-size: 11px; color: #444; margin-bottom: 8px; }
 </style>
 </head>
 <body>
 <div id="ng">
   <div id="meta">
     <div>ノノグラム <span id="puzzle-title"></span></div>
-    <div style="font-size:12px;color:#555">左クリック＝塗る　右クリック＝×</div>
   </div>
+  <div id="op-hint" id="op-hint"></div>
   <div id="progress"></div>
   <div id="board"></div>
   <div id="controls">
@@ -93,6 +94,11 @@ const PUZZLES = [
   { title: "Lv.9", hint: "ロケット", size: 8, grid: [[0,0,0,1,1,0,0,0],[0,0,1,1,1,1,0,0],[0,0,1,1,1,1,0,0],[0,1,1,1,1,1,1,0],[0,1,1,1,1,1,1,0],[1,0,1,1,1,1,0,1],[1,0,0,1,1,0,0,1],[0,0,0,1,1,0,0,0]] },
   { title: "Lv.10", hint: "ネコ", size: 8, grid: [[1,1,0,0,0,0,1,1],[1,1,1,0,0,1,1,1],[0,1,1,1,1,1,1,0],[0,1,0,1,1,0,1,0],[0,1,1,1,1,1,1,0],[0,0,1,0,0,1,0,0],[0,1,1,1,1,1,1,0],[0,1,0,0,0,0,1,0]] },
 ];
+
+const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+document.getElementById('op-hint').textContent = isTouch
+  ? 'タップ＝塗る　長押し＝×'
+  : '左クリック＝塗る　右クリック＝×';
 
 let current = 0;
 let state = [];
@@ -175,20 +181,53 @@ function buildBoard() {
 
     for (let c = 0; c < n; c++) {
       const cell = document.createElement('div');
-      cell.style.cssText = 'width:36px;height:36px;border:0.5px solid #2a2a4a;cursor:pointer;background:#1a1a30;transition:background 0.1s;user-select:none';
+      cell.style.cssText = 'width:36px;height:36px;border:0.5px solid #2a2a4a;cursor:pointer;background:#1a1a30;transition:background 0.1s;user-select:none;-webkit-user-select:none;touch-action:manipulation';
       cell.dataset.r = r;
       cell.dataset.c = c;
-      cell.addEventListener('click', () => {
+
+      // PC: 左クリック
+      cell.addEventListener('click', (e) => {
         if (solved) return;
         state[r][c] = state[r][c] === 1 ? 0 : 1;
         renderCells();
       });
+
+      // PC: 右クリック
       cell.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         if (solved) return;
         state[r][c] = state[r][c] === 2 ? 0 : 2;
         renderCells();
       });
+
+      // スマホ: 長押し
+      let longPressTimer = null;
+      cell.addEventListener('touchstart', (e) => {
+        longPressTimer = setTimeout(() => {
+          longPressTimer = null;
+          if (solved) return;
+          state[r][c] = state[r][c] === 2 ? 0 : 2;
+          renderCells();
+          // 長押し後はtouchendのclickを抑制
+          cell.dataset.longpressed = '1';
+        }, 500);
+      }, { passive: true });
+
+      cell.addEventListener('touchend', (e) => {
+        if (longPressTimer) {
+          clearTimeout(longPressTimer);
+          longPressTimer = null;
+        }
+        if (cell.dataset.longpressed === '1') {
+          cell.dataset.longpressed = '';
+          e.preventDefault();
+        }
+      });
+
+      cell.addEventListener('touchmove', () => {
+        if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+      }, { passive: true });
+
       row.appendChild(cell);
     }
     board.appendChild(row);

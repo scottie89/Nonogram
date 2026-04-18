@@ -30,88 +30,75 @@
     color: #666;
   }
   #meta span { font-weight: 500; font-size: 15px; color: #ddd; }
+  #progress { font-size: 12px; color: #555; margin-bottom: 10px; }
   #msg { font-size: 13px; color: #666; margin-top: 8px; min-height: 20px; }
   #msg.win { color: #4ade80; font-weight: 500; }
   #msg.err { color: #f87171; }
-  #controls { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  #hint-box {
+    display: none;
+    margin-top: 8px;
+    font-size: 13px;
+    color: #f0c060;
+    background: #1e1a10;
+    border: 1px solid #4a3a10;
+    border-radius: 6px;
+    padding: 6px 12px;
+  }
+  #controls { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
   button {
     font-size: 12px; padding: 5px 14px; border-radius: 6px;
     border: 1px solid #3a3a6a; background: #1e1e3a; color: #aaa;
     cursor: pointer; font-family: sans-serif;
   }
   button:hover { background: #2a2a50; color: #ddd; }
+  #hint-btn { border-color: #4a3a10; background: #1e1a10; color: #a08040; }
+  #hint-btn:hover { background: #2a2210; color: #f0c060; }
   #next-btn { display: none; }
+  #puzzle-select {
+    font-size: 12px; padding: 5px 10px; border-radius: 6px;
+    border: 1px solid #3a3a6a; background: #1e1e3a; color: #aaa;
+    cursor: pointer; font-family: sans-serif;
+  }
 </style>
 </head>
 <body>
 <div id="ng">
   <div id="meta">
-    <div>ノノグラム <span id="puzzle-title">レベル 1</span></div>
+    <div>ノノグラム <span id="puzzle-title"></span></div>
     <div style="font-size:12px;color:#555">左クリック＝塗る　右クリック＝×</div>
   </div>
+  <div id="progress"></div>
   <div id="board"></div>
   <div id="controls">
     <button id="check-btn">答え合わせ</button>
     <button id="reset-btn">リセット</button>
+    <button id="hint-btn">ヒント</button>
     <button id="next-btn">次のパズル →</button>
+    <select id="puzzle-select"></select>
   </div>
+  <div id="hint-box"></div>
   <div id="msg"></div>
 </div>
 
 <script>
 const PUZZLES = [
-  {
-    title: "レベル 1 — ハート",
-    size: 5,
-    grid: [
-      [0,1,0,1,0],
-      [1,1,1,1,1],
-      [1,1,1,1,1],
-      [0,1,1,1,0],
-      [0,0,1,0,0],
-    ]
-  },
-  {
-    title: "レベル 2 — 矢印",
-    size: 5,
-    grid: [
-      [0,0,1,0,0],
-      [0,1,1,1,0],
-      [1,1,1,1,1],
-      [0,0,1,0,0],
-      [0,0,1,0,0],
-    ]
-  },
-  {
-    title: "レベル 3 — 家",
-    size: 6,
-    grid: [
-      [0,0,1,1,0,0],
-      [0,1,1,1,1,0],
-      [1,1,1,1,1,1],
-      [1,1,0,0,1,1],
-      [1,1,0,0,1,1],
-      [1,1,1,1,1,1],
-    ]
-  },
-  {
-    title: "レベル 4 — 魚",
-    size: 7,
-    grid: [
-      [0,0,1,1,1,0,1],
-      [0,1,1,1,1,1,0],
-      [1,1,1,1,1,1,1],
-      [1,1,1,1,1,1,1],
-      [0,1,1,1,1,1,0],
-      [0,0,1,1,1,0,0],
-      [0,0,0,1,0,0,0],
-    ]
-  }
+  { title: "Lv.1", hint: "ハート", size: 5, grid: [[0,1,0,1,0],[1,1,1,1,1],[1,1,1,1,1],[0,1,1,1,0],[0,0,1,0,0]] },
+  { title: "Lv.2", hint: "矢印", size: 5, grid: [[0,0,1,0,0],[0,1,1,1,0],[1,1,1,1,1],[0,0,1,0,0],[0,0,1,0,0]] },
+  { title: "Lv.3", hint: "家", size: 6, grid: [[0,0,1,1,0,0],[0,1,1,1,1,0],[1,1,1,1,1,1],[1,1,0,0,1,1],[1,1,0,0,1,1],[1,1,1,1,1,1]] },
+  { title: "Lv.4", hint: "魚", size: 7, grid: [[0,0,1,1,1,0,1],[0,1,1,1,1,1,0],[1,1,1,1,1,1,1],[1,1,1,1,1,1,1],[0,1,1,1,1,1,0],[0,0,1,1,1,0,0],[0,0,0,1,0,0,0]] },
+  { title: "Lv.5", hint: "木", size: 7, grid: [[0,0,0,1,0,0,0],[0,0,1,1,1,0,0],[0,1,1,1,1,1,0],[1,1,1,1,1,1,1],[0,0,0,1,0,0,0],[0,0,0,1,0,0,0],[0,0,1,1,1,0,0]] },
+  { title: "Lv.6", hint: "月", size: 7, grid: [[0,0,1,1,1,0,0],[0,1,1,0,0,0,0],[1,1,0,0,0,0,0],[1,1,0,0,0,0,0],[1,1,0,0,0,0,0],[0,1,1,0,0,0,0],[0,0,1,1,1,0,0]] },
+  { title: "Lv.7", hint: "鍵", size: 7, grid: [[0,0,1,1,1,0,0],[0,1,0,0,0,1,0],[0,1,0,0,0,1,0],[0,0,1,1,1,0,0],[0,0,1,0,0,0,0],[0,0,1,1,0,0,0],[0,0,1,0,0,0,0]] },
+  { title: "Lv.8", hint: "王冠", size: 7, grid: [[1,0,0,0,0,0,1],[1,0,1,0,1,0,1],[1,1,1,1,1,1,1],[1,1,1,1,1,1,1],[0,1,1,1,1,1,0],[0,1,1,1,1,1,0],[0,0,0,0,0,0,0]] },
+  { title: "Lv.9", hint: "ロケット", size: 8, grid: [[0,0,0,1,1,0,0,0],[0,0,1,1,1,1,0,0],[0,0,1,1,1,1,0,0],[0,1,1,1,1,1,1,0],[0,1,1,1,1,1,1,0],[1,0,1,1,1,1,0,1],[1,0,0,1,1,0,0,1],[0,0,0,1,1,0,0,0]] },
+  { title: "Lv.10", hint: "ネコ", size: 8, grid: [[1,1,0,0,0,0,1,1],[1,1,1,0,0,1,1,1],[0,1,1,1,1,1,1,0],[0,1,0,1,1,0,1,0],[0,1,1,1,1,1,1,0],[0,0,1,0,0,1,0,0],[0,1,1,1,1,1,1,0],[0,1,0,0,0,0,1,0]] },
 ];
 
 let current = 0;
 let state = [];
 let solved = false;
+let hintShown = false;
+const cleared = new Set();
 
 function getHints(line) {
   const runs = [];
@@ -124,15 +111,32 @@ function getHints(line) {
   return runs.length ? runs : [0];
 }
 
+function buildSelect() {
+  const sel = document.getElementById('puzzle-select');
+  sel.innerHTML = '';
+  PUZZLES.forEach((p, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = (cleared.has(i) ? '✓ ' : '') + p.title;
+    if (i === current) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
 function buildBoard() {
   const p = PUZZLES[current];
   const n = p.size;
   state = Array.from({length:n}, () => Array(n).fill(0));
   solved = false;
+  hintShown = false;
   document.getElementById('msg').textContent = '';
   document.getElementById('msg').className = '';
   document.getElementById('next-btn').style.display = 'none';
   document.getElementById('puzzle-title').textContent = p.title;
+  document.getElementById('hint-box').style.display = 'none';
+  document.getElementById('hint-box').textContent = '';
+  document.getElementById('progress').textContent = `クリア済み: ${cleared.size} / ${PUZZLES.length}`;
+  buildSelect();
 
   const rowHints = p.grid.map(row => getHints(row));
   const colHints = Array.from({length:n}, (_,c) => getHints(p.grid.map(r=>r[c])));
@@ -174,20 +178,17 @@ function buildBoard() {
       cell.style.cssText = 'width:36px;height:36px;border:0.5px solid #2a2a4a;cursor:pointer;background:#1a1a30;transition:background 0.1s;user-select:none';
       cell.dataset.r = r;
       cell.dataset.c = c;
-
       cell.addEventListener('click', () => {
         if (solved) return;
         state[r][c] = state[r][c] === 1 ? 0 : 1;
         renderCells();
       });
-
       cell.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         if (solved) return;
         state[r][c] = state[r][c] === 2 ? 0 : 2;
         renderCells();
       });
-
       row.appendChild(cell);
     }
     board.appendChild(row);
@@ -230,13 +231,12 @@ function check() {
   const msg = document.getElementById('msg');
   if (correct) {
     solved = true;
-    msg.textContent = '正解！';
+    cleared.add(current);
+    buildSelect();
+    document.getElementById('progress').textContent = `クリア済み: ${cleared.size} / ${PUZZLES.length}`;
+    msg.textContent = cleared.size === PUZZLES.length ? '全10パズルクリア！すごい！' : '正解！';
     msg.className = 'win';
-    if (current < PUZZLES.length - 1) {
-      document.getElementById('next-btn').style.display = 'inline-block';
-    } else {
-      msg.textContent = '全パズルクリア！おめでとう！';
-    }
+    if (current < PUZZLES.length - 1) document.getElementById('next-btn').style.display = 'inline-block';
   } else {
     msg.textContent = 'まだ違うみたい…もう少し考えてみよう';
     msg.className = 'err';
@@ -245,9 +245,18 @@ function check() {
 
 document.getElementById('check-btn').addEventListener('click', check);
 document.getElementById('reset-btn').addEventListener('click', buildBoard);
-document.getElementById('next-btn').addEventListener('click', () => {
-  current = Math.min(current + 1, PUZZLES.length - 1);
-  buildBoard();
+document.getElementById('next-btn').addEventListener('click', () => { current = Math.min(current + 1, PUZZLES.length - 1); buildBoard(); });
+document.getElementById('puzzle-select').addEventListener('change', (e) => { current = +e.target.value; buildBoard(); });
+document.getElementById('hint-btn').addEventListener('click', () => {
+  const box = document.getElementById('hint-box');
+  if (hintShown) {
+    box.style.display = 'none';
+    hintShown = false;
+  } else {
+    box.textContent = 'ヒント: 「' + PUZZLES[current].hint + '」';
+    box.style.display = 'block';
+    hintShown = true;
+  }
 });
 
 buildBoard();
